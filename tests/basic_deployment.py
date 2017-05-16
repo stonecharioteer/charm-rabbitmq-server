@@ -722,3 +722,32 @@ class RmqBasicDeployment(OpenStackAmuletDeployment):
 
         action_id = u.run_action(self.rmq0_sentry, "check-queues")
         assert u.wait_on_action(action_id), "Check queues action failed."
+
+    def test_913_list_unconsumed_queues(self):
+        """ rabbitmqctl list-unconsumed-queues action can be returned. """
+        u.log.debug('Checking list-unconsumed-queues action...')
+
+        self._test_rmq_amqp_messages_all_units([self.rmq0_sentry])
+        action_id = u.run_action(self.rmq0_sentry, "list-unconsumed-queues")
+        assert u.wait_on_action(action_id), \
+            "list-unconsumed-queues action failed."
+
+        result = amulet.actions.get_action_output(action_id, full_output=True)
+        queue_count = int(result['results']['unconsumed-queue-count'])
+        assert queue_count > 0, 'Did not find any unconsumed queues.'
+
+        queue_name = 'test'  # publish_amqp_message_by_unit default queue name
+        for i in range(queue_count):
+            queue_data = json.loads(
+                result['results']['unconsumed-queues'][str(i)])
+            if queue_data['name'] == queue_name:
+                break
+        else:
+            assert False, 'Did not find expected queue in result.'
+
+        # Since we just reused _test_rmq_amqp_messages_all_units, we should
+        # have created the queue if it didn't already exist, but all messages
+        # should have already been consumed.
+        assert queue_data['messages'] == 0, 'Found unexpected message count.'
+
+        u.log.debug('OK')

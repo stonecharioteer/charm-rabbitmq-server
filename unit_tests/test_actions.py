@@ -111,6 +111,77 @@ class CheckQueuesTestCase(CharmTestCase):
                                                    '-p', '/'])
 
 
+class ListUnconsumedQueuesTestCase(CharmTestCase):
+
+    def setUp(self):
+        super(ListUnconsumedQueuesTestCase, self).setUp(
+            actions, ["list_vhosts", "vhost_queue_info", "action_set",
+                      "action_fail"])
+
+    def test_list_unconsumed_queues(self):
+        self.list_vhosts.return_value = ['/']
+        self.vhost_queue_info.return_value = [
+            {'name': 'unconsumed_queue', 'messages': 1, 'consumers': 0},
+            {'name': 'consumed_queue', 'messages': 0, 'consumers': 1}]
+        actions.list_unconsumed_queues([])
+
+        self.list_vhosts.assert_called()
+        self.vhost_queue_info.assert_called_once_with('/')
+        calls = [
+            mock.call({
+                "unconsumed-queues.0":
+                '{"vhost": "/", "name": "unconsumed_queue", "messages": 1}'}),
+            mock.call({'unconsumed-queue-count': 1})
+        ]
+        self.action_set.assert_has_calls(calls)
+
+    def test_list_multiple_vhosts_unconsumed_queues(self):
+        self.list_vhosts.return_value = ['/', 'other_vhost']
+        self.vhost_queue_info.return_value = [
+            {'name': 'unconsumed_queue', 'messages': 1, 'consumers': 0},
+            {'name': 'consumed_queue', 'messages': 0, 'consumers': 1}]
+        actions.list_unconsumed_queues([])
+
+        self.list_vhosts.assert_called()
+        calls = [
+            mock.call({
+                "unconsumed-queues.0":
+                '{"vhost": "/", "name": "unconsumed_queue", "messages": 1}'}),
+            mock.call({
+                "unconsumed-queues.1":
+                '{"vhost": "other_vhost", "name": "unconsumed_queue", '
+                '"messages": 1}'}),
+            mock.call({'unconsumed-queue-count': 2})
+        ]
+        self.action_set.assert_has_calls(calls)
+
+    def test_list_unconsumed_queues_no_unconsumed(self):
+        self.list_vhosts.return_value = ['/']
+        self.vhost_queue_info.return_value = [
+            {'name': 'consumed_queue', 'messages': 1, 'consumers': 1},
+            {'name': 'consumed_queue2', 'messages': 0, 'consumers': 1}]
+        actions.list_unconsumed_queues([])
+
+        self.list_vhosts.assert_called()
+        self.vhost_queue_info.assert_called_once_with('/')
+        self.action_set.assert_called_once_with({'unconsumed-queue-count': 0})
+
+    def test_list_unconsumed_queues_exception(self):
+        self.vhost_queue_info.side_effect = \
+            actions.CalledProcessError(1, "Failure")
+        self.list_vhosts.return_value = ['/']
+        self.vhost_queue_info.return_value = [
+            {'name': 'unconsumed_queue', 'messages': 1, 'consumers': 0},
+            {'name': 'consumed_queue', 'messages': 0, 'consumers': 1}]
+        actions.list_unconsumed_queues([])
+
+        self.list_vhosts.assert_called()
+        self.vhost_queue_info.assert_called_once_with('/')
+        self.action_set.assert_called()
+        self.action_fail.assert_called_once_with(
+            "Failed to query RabbitMQ vhost / queues")
+
+
 class MainTestCase(CharmTestCase):
 
     def setUp(self):
