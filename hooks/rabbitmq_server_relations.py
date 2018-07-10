@@ -613,12 +613,13 @@ def update_nrpe_checks():
         rsync(os.path.join(charm_dir(), 'scripts',
                            'collect_rabbitmq_stats.sh'), script)
         write_file(STATS_CRONFILE, cronjob)
+    elif os.path.isfile(STATS_CRONFILE):
+        os.remove(STATS_CRONFILE)
+
     if config('management_plugin'):
         rsync(os.path.join(charm_dir(), 'scripts',
                            'check_rabbitmq_cluster.py'),
               os.path.join(NAGIOS_PLUGINS, 'check_rabbitmq_cluster.py'))
-    elif os.path.isfile(STATS_CRONFILE):
-        os.remove(STATS_CRONFILE)
 
     # Find out if nrpe set nagios_hostname
     hostname = nrpe.get_nagios_hostname()
@@ -746,6 +747,10 @@ def config_changed():
     # result in an upgrade if applicable only if we change the 'source'
     # config option
     if rabbit.archive_upgrade_available():
+        # Avoid packge upgrade collissions
+        # Stopping and attempting to start rabbitmqs at the same time leads to
+        # failed restarts
+        rabbit.cluster_wait()
         rabbit.install_or_upgrade_packages()
 
     if config('ssl') == 'off':
