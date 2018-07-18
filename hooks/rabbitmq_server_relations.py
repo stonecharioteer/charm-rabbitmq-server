@@ -201,6 +201,13 @@ def configure_amqp(username, vhost, relation_id, admin=False):
 
     # update vhost
     rabbit.create_vhost(vhost)
+    # NOTE(jamespage): Workaround until we have a good way
+    #                  of generally disabling notifications
+    #                  based on which services are deployed.
+    if vhost == 'openstack':
+        rabbit.configure_notification_ttl(vhost,
+                                          config('notification-ttl'))
+
     if admin:
         rabbit.create_user(username, password, ['administrator'])
     else:
@@ -807,6 +814,13 @@ def config_changed():
     for rid in relation_ids('cluster'):
         for unit in related_units(rid):
             cluster_changed(relation_id=rid, remote_unit=unit)
+
+    # NOTE(jamespage): Workaround until we have a good way
+    #                  of generally disabling notifications
+    #                  based on which services are deployed.
+    if 'openstack' in rabbit.list_vhosts():
+        rabbit.configure_notification_ttl('openstack',
+                                          config('notification-ttl'))
 
 
 @hooks.hook('leader-elected')

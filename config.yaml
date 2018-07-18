@@ -285,3 +285,11 @@ options:
       collisions. Known wait is the amount of time between one node executing
       an operation and another. On slower hardware this value may need to be
       larger than the default of 30 seconds.
+  notification-ttl:
+    type: int
+    default: 3600000
+    description: |
+      TTL in MS for notification queues in the openstack vhost. Defaults to
+      1 hour, but can be tuned up or down depending on deployment requirements.
+      This ensures that any un-consumed notifications don't build up over
+      time, causing disk capacity issues.
