@@ -38,7 +38,7 @@ options:
       exchanges that match the expression '^(?!amq\.).*'
   cluster-partition-handling:
     type: string
-    default: ignore
+    default: autoheal
     description: |
       RabbitMQ offers three ways to deal with network partitions automatically.
       Available modes:
