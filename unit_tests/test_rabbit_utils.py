@@ -742,3 +742,16 @@ class UtilsTests(CharmTestCase):
         self.config.side_effect = lambda key: _config.get(key)
         rabbit_utils.cluster_wait()
         mock_distributed_wait.assert_called_with(modulo=10, wait=60)
+
+    @mock.patch.object(rabbit_utils, 'rabbitmqctl')
+    def test_configure_notification_ttl(self, rabbitmqctl):
+        rabbit_utils.configure_notification_ttl('test',
+                                                23000)
+        rabbitmqctl.assert_called_once_with(
+            'set_policy',
+            'TTL', '^(versioned_)?notifications.*',
+            '{"message-ttl":23000}',
+            '--priority', '1',
+            '--apply-to', 'queues',
+            '-p', 'test'
+        )

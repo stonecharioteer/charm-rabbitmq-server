@@ -207,17 +207,26 @@ class RelationUtil(CharmTestCase):
         mock_amqp_changed.assert_called_with(relation_id='amqp:0',
                                              remote_unit='client/0')
 
+    @patch.object(rabbitmq_server_relations.rabbit,
+                  'configure_notification_ttl')
     @patch.object(rabbitmq_server_relations, 'is_leader')
     @patch.object(rabbitmq_server_relations.rabbit, 'set_ha_mode')
     @patch.object(rabbitmq_server_relations.rabbit, 'get_rabbit_password')
     @patch.object(rabbitmq_server_relations.rabbit, 'create_vhost')
     @patch.object(rabbitmq_server_relations.rabbit, 'create_user')
     @patch.object(rabbitmq_server_relations.rabbit, 'grant_permissions')
-    @patch.object(rabbitmq_server_relations, 'config', lambda *args: True)
-    def test_configure_amqp(self, mock_grant_permissions, mock_create_vhost,
+    @patch.object(rabbitmq_server_relations, 'config')
+    def test_configure_amqp(self, mock_config,
+                            mock_grant_permissions, mock_create_vhost,
                             mock_create_user, mock_get_rabbit_password,
-                            mock_set_ha_mode, mock_is_leader):
+                            mock_set_ha_mode, mock_is_leader,
+                            mock_configure_notification_ttl):
+        config_data = {
+            'notification-ttl': 450000,
+            'mirroring-queues': True,
+        }
         mock_is_leader.return_value = True
+        mock_config.side_effect = lambda attribute: config_data.get(attribute)
         tmpdir = tempfile.mkdtemp()
         try:
             db_path = '{}/kv.db'.format(tmpdir)
@@ -282,6 +291,17 @@ class RelationUtil(CharmTestCase):
                     del d[rid]['stale']
                     self.assertEqual(store.get('amqp_config_tracker'), d)
                     d[rid]['stale'] = True
+
+                mock_configure_notification_ttl.assert_not_called()
+
+                # Test openstack notification workaround
+                d = {}
+                for rid, user in [('amqp:1', 'userA')]:
+                    rabbitmq_server_relations.configure_amqp(user,
+                                                             'openstack', rid)
+                (mock_configure_notification_ttl.
+                    assert_called_once_with('openstack', 450000))
+
         finally:
             if os.path.exists(tmpdir):
                 shutil.rmtree(tmpdir)

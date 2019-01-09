@@ -348,6 +348,20 @@ def rabbitmqctl(action, *args):
     subprocess.check_call(cmd)
 
 
+def configure_notification_ttl(vhost, ttl=3600000):
+    ''' Configure 1h minute TTL for notfication topics in the provided vhost
+        This is a workaround for filling notification queues in OpenStack
+        until a more general service discovery mechanism exists so that
+        notifications can be enabled/disabled on each individual service.
+    '''
+    rabbitmqctl('set_policy',
+                'TTL', '^(versioned_)?notifications.*',
+                '{{"message-ttl":{ttl}}}'.format(ttl=ttl),
+                '--priority', '1',
+                '--apply-to', 'queues',
+                '-p', vhost)
+
+
 def rabbitmqctl_normalized_output(*args):
     ''' Run rabbitmqctl with args. Normalize output by removing
         whitespace and return it to caller for further processing.
