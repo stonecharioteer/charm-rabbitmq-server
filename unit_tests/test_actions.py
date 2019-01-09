@@ -66,7 +66,7 @@ class ClusterStatusTestCase(CharmTestCase):
                                                   universal_newlines=True)
         self.action_set.assert_called()
 
-    def test_cluster_status_execption(self):
+    def test_cluster_status_exception(self):
         self.check_output.side_effect = actions.CalledProcessError(1,
                                                                    "Failure")
         actions.cluster_status([])
