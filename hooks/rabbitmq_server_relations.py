@@ -435,8 +435,9 @@ def cluster_changed(relation_id=None, remote_unit=None):
             'rabbitmq cluster config.', level=INFO)
         return
 
-    # NOTE(freyes): all the nodes need to marked as 'clustered' (LP: #1691510)
-    rabbit.cluster_with()
+    if rabbit.is_sufficient_peers():
+        # NOTE(freyes): all the nodes need to marked as 'clustered' (LP: #1691510)
+        rabbit.cluster_with()
 
     if not is_leader() and is_relation_made('nrpe-external-master'):
         update_nrpe_checks()

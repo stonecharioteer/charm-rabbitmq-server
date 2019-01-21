@@ -471,6 +471,7 @@ class UtilsTests(CharmTestCase):
     @mock.patch.object(rabbit_utils, 'config')
     def test_is_sufficient_peers(self, mock_config, mock_relation_ids,
                                  mock_related_units, mock_is_leader):
+        self.relation_get.return_value = None
         # With leadership Election
         mock_is_leader.return_value = False
         _config = {'min-cluster-size': None}
@@ -484,6 +485,7 @@ class UtilsTests(CharmTestCase):
         mock_config.side_effect = lambda key: _config.get(key)
         self.assertFalse(rabbit_utils.is_sufficient_peers())
 
+        self.relation_get.side_effect = ['testhost0', 'testhost1']
         mock_is_leader.return_value = False
         mock_related_units.return_value = ['test/0', 'test/1']
         _config = {'min-cluster-size': 3}

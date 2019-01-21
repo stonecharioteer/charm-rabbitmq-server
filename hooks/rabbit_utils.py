@@ -974,7 +974,7 @@ def is_sufficient_peers():
     """Sufficient number of expected peers to build a complete cluster
 
     If min-cluster-size has been provided, check that we have sufficient
-    number of peers as expected for a complete cluster.
+    number of peers who have presented a hostname for a complete cluster.
 
     If not defined assume a single unit.
 
@@ -988,7 +988,10 @@ def is_sufficient_peers():
         # Include this unit
         units = 1
         for rid in relation_ids('cluster'):
-            units += len(related_units(rid))
+            for unit in related_units(rid):
+                if relation_get(attribute='hostname',
+                                rid=rid, unit=unit):
+                    units += 1
 
         if units < min_size:
             log("Insufficient number of peer units to form cluster "
