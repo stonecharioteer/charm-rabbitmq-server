@@ -9,7 +9,7 @@ include:
     - contrib.openstack|inc=*
     - contrib.storage
     - contrib.peerstorage
-    - contrib.python.packages
+    - contrib.python
     - contrib.ssl
     - contrib.hahelpers.apache
     - contrib.hahelpers.cluster
