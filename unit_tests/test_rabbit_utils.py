@@ -99,6 +99,21 @@ RABBITMQCTL_CLUSTERSTATUS_SOLO = b"""Cluster status of node 'rabbit@juju-devel3-
  {partitions,[]}]
  """
 
+RABBITMQCTL_LIST_QUEUES = b"""Listing queues ...
+a_sample_queue	0	1
+cinder-scheduler.cinder	0	1
+cinder-fanout-12345	250	0
+myqueue	0	1
+...done
+"""
+
+RABBITMQCTL_LIST_VHOSTS = b"""Listing vhosts ...
+/
+landscape
+openstack
+...done
+"""
+
 
 class UtilsTests(CharmTestCase):
     def setUp(self):
@@ -192,6 +207,28 @@ class UtilsTests(CharmTestCase):
         self.assertEqual(rabbit_utils.running_nodes(),
                          ['rabbit@juju-devel3-machine-14',
                           'rabbit@juju-devel3-machine-19'])
+
+    @mock.patch('rabbit_utils.subprocess')
+    def test_list_vhosts(self, mock_subprocess):
+        '''Ensure list_vhosts parses output into the proper list'''
+        mock_subprocess.check_output.return_value = \
+            RABBITMQCTL_LIST_VHOSTS
+        self.assertEqual(rabbit_utils.list_vhosts(),
+                         ['/', 'landscape', 'openstack'])
+
+    @mock.patch('rabbit_utils.subprocess')
+    def test_vhost_queue_info(self, mock_subprocess):
+        '''Ensure vhost_queue_info parses output into the proper format/info'''
+        mock_subprocess.check_output.return_value = \
+            RABBITMQCTL_LIST_QUEUES
+        self.assertEqual(rabbit_utils.vhost_queue_info('openstack'),
+                         [{'name': 'a_sample_queue', 'messages': 0,
+                           'consumers': 1},
+                          {'name': 'cinder-scheduler.cinder', 'messages': 0,
+                           'consumers': 1},
+                          {'name': 'cinder-fanout-12345', 'messages': 250,
+                           'consumers': 0},
+                          {'name': 'myqueue', 'messages': 0, 'consumers': 1}])
 
     @mock.patch('rabbit_utils.subprocess')
     def test_nodes_solo(self, mock_subprocess):

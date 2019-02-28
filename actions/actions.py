@@ -13,9 +13,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import json
 import os
 import re
+from collections import OrderedDict
 from subprocess import check_output, CalledProcessError
 import sys
 
@@ -46,6 +47,8 @@ from hooks.rabbit_utils import (
     pause_unit_helper,
     resume_unit_helper,
     assess_status,
+    list_vhosts,
+    vhost_queue_info,
 )
 
 
@@ -112,11 +115,44 @@ def complete_cluster_series_upgrade(args):
     assess_status(ConfigRenderer(CONFIG_FILES))
 
 
+def list_unconsumed_queues(args):
+    """List queues which are unconsumed in RabbitMQ"""
+    count = 0
+    for vhost in list_vhosts():
+        try:
+            queue_info_dict = vhost_queue_info(vhost)
+        except CalledProcessError as e:
+            # if no queues, just raises an exception
+            action_set({'output': e.output,
+                        'return-code': e.returncode})
+            action_fail("Failed to query RabbitMQ vhost {} queues"
+                        "".format(vhost))
+            return False
+
+        for queue in queue_info_dict:
+            if queue['consumers'] == 0:
+                vhostqueue = "unconsumed-queues.{}".format(count)
+                value = OrderedDict((
+                    ('vhost', vhost),
+                    ('name', queue['name']),
+                    ('messages', queue['messages']),
+                ))
+                action_set({vhostqueue: json.dumps(value)})
+                count += 1
+
+    action_set({'unconsumed-queue-count': count})
+
+
 # A dictionary of all the defined actions to callables (which take
 # parsed arguments).
-ACTIONS = {"pause": pause, "resume": resume, "cluster-status": cluster_status,
-           "check-queues": check_queues,
-           "complete-cluster-series-upgrade": complete_cluster_series_upgrade}
+ACTIONS = {
+    "pause": pause,
+    "resume": resume,
+    "cluster-status": cluster_status,
+    "check-queues": check_queues,
+    "complete-cluster-series-upgrade": complete_cluster_series_upgrade,
+    "list-unconsumed-queues": list_unconsumed_queues,
+}
 
 
 def main(args):

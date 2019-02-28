@@ -191,6 +191,34 @@ def list_vhosts():
         return []
 
 
+def vhost_queue_info(vhost):
+    """Provide a list of queue info objects for the given vhost in RabbitMQ
+    Each object provides name (str), messages (int), and consumers (int)
+    @raises CalledProcessError on failure to list_queues of the vhost
+    """
+    cmd = [RABBITMQ_CTL, '-p', vhost, 'list_queues',
+           'name', 'messages', 'consumers']
+    output = subprocess.check_output(cmd).decode('utf-8')
+
+    queue_info = []
+    # NOTE(jamespage): Earlier rabbitmqctl versions append "...done"
+    #                  to the output of list_queues
+    if '...done' in output:
+        queues = output.split('\n')[1:-2]
+    else:
+        queues = output.split('\n')[1:-1]
+
+    for queue in queues:
+        [qname, qmsgs, qconsumers] = queue.split()
+        queue_info.append({
+            'name': qname,
+            'messages': int(qmsgs),
+            'consumers': int(qconsumers)
+        })
+
+    return queue_info
+
+
 def vhost_exists(vhost):
     return vhost in list_vhosts()
 
