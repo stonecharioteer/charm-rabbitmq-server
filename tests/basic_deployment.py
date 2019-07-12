@@ -91,7 +91,7 @@ class RmqBasicDeployment(OpenStackAmuletDeployment):
         }
         other_services = [
             {'name': 'cinder'},
-            {'name': 'percona-cluster'},
+            self.get_percona_service_entry(),
             {'name': 'keystone'},
             {'name': 'nrpe'}
         ]
