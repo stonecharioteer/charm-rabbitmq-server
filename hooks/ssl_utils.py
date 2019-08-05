@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import base64
+import os
 
 from charmhelpers.contrib.ssl.service import ServiceCA
 
@@ -95,7 +96,7 @@ def configure_client_ssl(relation_data):
         relation_certs = get_relation_cert_data()
         ca_data = relation_certs['ca']
         if relation_certs.get('chain'):
-            ca_data = ca_data + relation_certs.get('chain')
+            ca_data = ca_data + os.linesep + relation_certs.get('chain')
         relation_data['ssl_ca'] = b64encoded_string(ca_data)
     else:
         if external_ca:
