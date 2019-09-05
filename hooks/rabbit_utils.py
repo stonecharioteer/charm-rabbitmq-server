@@ -19,6 +19,7 @@ import subprocess
 import glob
 import tempfile
 import time
+import shutil
 import socket
 
 from collections import OrderedDict
@@ -737,7 +738,7 @@ def update_hosts_file(map):
             for line in lines:
                 hosts.write(line)
 
-    os.rename(tmpfile.name, HOSTS_FILE)
+    shutil.move(tmpfile.name, HOSTS_FILE)
     os.chmod(HOSTS_FILE, 0o644)
 
 
