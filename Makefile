@@ -24,5 +24,5 @@ test:
 	@tox -e py36
 
 functional_test:
-	@echo Starting amulet tests...
-	@tox -e func27
+	@echo Starting Zaza tests...
+	@tox -e func
