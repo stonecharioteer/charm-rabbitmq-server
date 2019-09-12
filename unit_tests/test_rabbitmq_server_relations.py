@@ -345,7 +345,7 @@ class RelationUtil(CharmTestCase):
 
         mock_check_output.assert_any_call(
             ['/usr/bin/rsync', '-r', '--delete', '--executability',
-             '%s/scripts/collect_rabbitmq_stats.sh' % self.tmp_dir,
+             '%s/files/collect_rabbitmq_stats.sh' % self.tmp_dir,
              '/usr/local/bin/collect_rabbitmq_stats.sh'],
             stderr=subprocess.STDOUT)
 

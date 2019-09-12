@@ -637,14 +637,14 @@ def ceph_changed():
 @hooks.hook('nrpe-external-master-relation-changed')
 def update_nrpe_checks():
     if os.path.isdir(NAGIOS_PLUGINS):
-        rsync(os.path.join(charm_dir(), 'scripts',
+        rsync(os.path.join(charm_dir(), 'files',
                            'check_rabbitmq.py'),
               os.path.join(NAGIOS_PLUGINS, 'check_rabbitmq.py'))
-        rsync(os.path.join(charm_dir(), 'scripts',
+        rsync(os.path.join(charm_dir(), 'files',
                            'check_rabbitmq_queues.py'),
               os.path.join(NAGIOS_PLUGINS, 'check_rabbitmq_queues.py'))
         if config('management_plugin'):
-            rsync(os.path.join(charm_dir(), 'scripts',
+            rsync(os.path.join(charm_dir(), 'files',
                                'check_rabbitmq_cluster.py'),
                   os.path.join(NAGIOS_PLUGINS, 'check_rabbitmq_cluster.py'))
 
@@ -653,7 +653,7 @@ def update_nrpe_checks():
         cronjob = CRONJOB_CMD.format(schedule=config('stats_cron_schedule'),
                                      timeout=config('cron-timeout'),
                                      command=script)
-        rsync(os.path.join(charm_dir(), 'scripts',
+        rsync(os.path.join(charm_dir(), 'files',
                            'collect_rabbitmq_stats.sh'), script)
         write_file(STATS_CRONFILE, cronjob)
     elif os.path.isfile(STATS_CRONFILE):
