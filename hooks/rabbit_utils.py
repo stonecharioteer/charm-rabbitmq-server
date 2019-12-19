@@ -798,7 +798,11 @@ def leader_node():
     '''
     # Each rabbitmq node should join_cluster with the leader
     # to avoid split-brain clusters.
-    leader_node_hostname = peer_retrieve('leader_node_hostname')
+    try:
+        leader_node_hostname = peer_retrieve('leader_node_hostname')
+    except ValueError:
+        # This is a single unit
+        return None
     if leader_node_hostname:
         return "rabbit@" + leader_node_hostname
     else:
