@@ -36,15 +36,10 @@ from charmhelpers.core.hookenv import (
     ERROR,
 )
 
-# python-six in ensured by charmhelpers import so we put this here.
-import six
 try:
     import psutil
 except ImportError:
-    if six.PY2:
-        apt_install('python-psutil', fatal=True)
-    else:
-        apt_install('python3-psutil', fatal=True)
+    apt_install('python3-psutil', fatal=True)
     import psutil
 
 
@@ -65,14 +60,23 @@ MAX_DEFAULT_THREADS = DEFAULT_MULTIPLIER * 2
 
 
 def convert_from_base64(v):
-    # Rabbit originally supported pem encoded key/cert in config, play
-    # nice on upgrades as we now expect base64 encoded key/cert/ca.
+    """Speculatively convert the string `v` from base64 encoding if it is
+    base64 encoded.
+
+    Rabbit originally supported pem encoded key/cert in config, play
+    nice on upgrades as we now expect base64 encoded key/cert/ca.
+
+    :param v: the string to maybe convert
+    :type v: str
+    :returns: string that may have been converted from base64 encoding.
+    :rtype: str
+    """
     if not v:
         return v
     if v.startswith('-----BEGIN'):
         return v
     try:
-        return base64.b64decode(v)
+        return base64.b64decode(v).decode('utf-8')
     except TypeError:
         return v
 
