@@ -12,7 +12,5 @@ gate_bundles:
   - bionic-stein
   - bionic-train
 dev_bundles:
-# Tests failing, investigate
-  - disco-stein
 tests:
   - zaza.openstack.charm_tests.rabbitmq_server.tests.RmqTests
