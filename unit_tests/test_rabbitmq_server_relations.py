@@ -306,6 +306,7 @@ class RelationUtil(CharmTestCase):
             if os.path.exists(tmpdir):
                 shutil.rmtree(tmpdir)
 
+    @patch('rabbit_utils.create_user')
     @patch('rabbitmq_server_relations.local_unit')
     @patch('charmhelpers.contrib.charmsupport.nrpe.NRPE.add_check')
     @patch('subprocess.check_call')
@@ -318,14 +319,17 @@ class RelationUtil(CharmTestCase):
     @patch('rabbitmq_server_relations.charm_dir')
     @patch('subprocess.check_output')
     @patch('rabbitmq_server_relations.config')
-    def test_update_nrpe_checks(self, mock_config, mock_check_output,
+    def test_update_nrpe_checks(self,
+                                mock_config,
+                                mock_check_output,
                                 mock_charm_dir, mock_fchown,
                                 mock_get_nagios_hostname,
                                 mock_get_nagios_unit_name, mock_config2,
                                 mock_nrpe_relation_ids,
                                 mock_get_rabbit_password_on_disk,
                                 mock_check_call, mock_add_check,
-                                mock_local_unit):
+                                mock_local_unit,
+                                mock_create_user):
 
         self.test_config.set('ssl', 'on')
 

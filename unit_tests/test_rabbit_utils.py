@@ -92,12 +92,35 @@ RABBITMQCTL_CLUSTERSTATUS_RUNNING = b"""Cluster status of node 'rabbit@juju-deve
  {partitions,[]}]
  """
 
+RABBITMQCTL_CLUSTERSTATUS_RUNNING_382 = b"""
+{"running_nodes": [
+    "rabbit@juju-devel3-machine-14",
+    "rabbit@juju-devel3-machine-19"],
+ "disk_nodes":
+    ["rabbit@juju-devel3-machine-14",
+     "rabbit@juju-devel3-machine-19"],
+ "ram_nodes": ["rabbit@juju-devel3-machine-42"]
+}
+"""
+
+
 RABBITMQCTL_CLUSTERSTATUS_SOLO = b"""Cluster status of node 'rabbit@juju-devel3-machine-14' ...
 [{nodes,[{disc,['rabbit@juju-devel3-machine-14']}]},
  {running_nodes,['rabbit@juju-devel3-machine-14']},
  {cluster_name,<<"rabbit@juju-devel3-machine-14.openstacklocal">>},
  {partitions,[]}]
  """
+
+
+RABBITMQCTL_CLUSTERSTATUS_SOLO_382 = b"""
+{"running_nodes": [
+    "rabbit@juju-devel3-machine-14"],
+ "disk_nodes":
+    ["rabbit@juju-devel3-machine-14"],
+ "ram_nodes": []
+}
+"""
+
 
 RABBITMQCTL_LIST_QUEUES = b"""Listing queues ...
 a_sample_queue	0	1
@@ -107,12 +130,21 @@ myqueue	0	1
 ...done
 """
 
+RABBITMQCTL_LIST_QUEUES_382 = (
+    b'[{"name": "a_sample_queue", "messages": 0, "consumers": 1},'
+    b'{"name": "cinder-scheduler.cinder", "messages": 0, "consumers": 1},'
+    b'{"name": "cinder-fanout-12345", "messages": 250, "consumers": 0},'
+    b'{"name": "myqueue", "messages": 0, "consumers": 1}]')
+
 RABBITMQCTL_LIST_VHOSTS = b"""Listing vhosts ...
 /
 landscape
 openstack
 ...done
 """
+
+RABBITMQCTL_LIST_VHOSTS_382 = (b'[{"name": "/"},{"name": "landscape"},'
+                               b'{"name": "openstack"}]')
 
 
 class UtilsTests(CharmTestCase):
@@ -189,38 +221,81 @@ class UtilsTests(CharmTestCase):
         mock_running_nodes.return_value = ['a', 'b']
         self.assertTrue(rabbit_utils.clustered())
 
+    @mock.patch('rabbit_utils.caching_cmp_pkgrevno')
     @mock.patch('rabbit_utils.subprocess')
-    def test_nodes(self, mock_subprocess):
+    def test_nodes(self, mock_subprocess, mock_cmp_pkgrevno):
         '''Ensure cluster_status can be parsed for a clustered deployment'''
         mock_subprocess.check_output.return_value = \
             RABBITMQCTL_CLUSTERSTATUS_RUNNING
+        mock_cmp_pkgrevno.return_value = -1
         self.assertEqual(rabbit_utils.nodes(),
                          ['rabbit@juju-devel3-machine-14',
                           'rabbit@juju-devel3-machine-19',
                           'rabbit@juju-devel3-machine-42'])
 
+    @mock.patch('rabbit_utils.caching_cmp_pkgrevno')
     @mock.patch('rabbit_utils.subprocess')
-    def test_running_nodes(self, mock_subprocess):
+    def test_nodes_382(self, mock_subprocess, mock_cmp_pkgrevno):
+        '''Ensure cluster_status can be parsed for a clustered deployment'''
+        mock_subprocess.check_output.return_value = \
+            RABBITMQCTL_CLUSTERSTATUS_RUNNING_382
+        mock_cmp_pkgrevno.return_value = 0
+        self.assertEqual(rabbit_utils.nodes(),
+                         ['rabbit@juju-devel3-machine-14',
+                          'rabbit@juju-devel3-machine-19',
+                          'rabbit@juju-devel3-machine-42'])
+
+    @mock.patch('rabbit_utils.caching_cmp_pkgrevno')
+    @mock.patch('rabbit_utils.subprocess')
+    def test_running_nodes(self, mock_subprocess, mock_cmp_pkgrevno):
         '''Ensure cluster_status can be parsed for a clustered deployment'''
         mock_subprocess.check_output.return_value = \
             RABBITMQCTL_CLUSTERSTATUS_RUNNING
+        mock_cmp_pkgrevno.return_value = -1
         self.assertEqual(rabbit_utils.running_nodes(),
                          ['rabbit@juju-devel3-machine-14',
                           'rabbit@juju-devel3-machine-19'])
 
+    @mock.patch('rabbit_utils.caching_cmp_pkgrevno')
     @mock.patch('rabbit_utils.subprocess')
-    def test_list_vhosts(self, mock_subprocess):
+    def test_running_nodes_382(self, mock_subprocess, mock_cmp_pkgrevno):
+        '''Ensure cluster_status can be parsed for a clustered deployment'''
+        mock_subprocess.check_output.return_value = \
+            RABBITMQCTL_CLUSTERSTATUS_RUNNING_382
+        mock_cmp_pkgrevno.return_value = 0
+        self.assertEqual(rabbit_utils.running_nodes(),
+                         ['rabbit@juju-devel3-machine-14',
+                          'rabbit@juju-devel3-machine-19'])
+
+    @mock.patch('rabbit_utils.caching_cmp_pkgrevno')
+    @mock.patch('rabbit_utils.subprocess')
+    def test_list_vhosts(self, mock_subprocess, mock_cmp_pkgrevno):
         '''Ensure list_vhosts parses output into the proper list'''
         mock_subprocess.check_output.return_value = \
             RABBITMQCTL_LIST_VHOSTS
+        mock_cmp_pkgrevno.return_value = -1
         self.assertEqual(rabbit_utils.list_vhosts(),
                          ['/', 'landscape', 'openstack'])
 
+    @mock.patch('rabbit_utils.caching_cmp_pkgrevno')
     @mock.patch('rabbit_utils.subprocess')
-    def test_vhost_queue_info(self, mock_subprocess):
+    def test_list_vhosts_382(self, mock_subprocess, mock_cmp_pkgrevno):
+        '''Ensure list_vhosts parses output into the proper list for
+        rabbitmq_server 3.8.2+
+        '''
+        mock_subprocess.check_output.return_value = \
+            RABBITMQCTL_LIST_VHOSTS_382
+        mock_cmp_pkgrevno.return_value = 0
+        self.assertEqual(rabbit_utils.list_vhosts(),
+                         ['/', 'landscape', 'openstack'])
+
+    @mock.patch('rabbit_utils.caching_cmp_pkgrevno')
+    @mock.patch('rabbit_utils.subprocess')
+    def test_vhost_queue_info(self, mock_subprocess, mock_cmp_pkgrevno):
         '''Ensure vhost_queue_info parses output into the proper format/info'''
         mock_subprocess.check_output.return_value = \
             RABBITMQCTL_LIST_QUEUES
+        mock_cmp_pkgrevno.return_value = -1
         self.assertEqual(rabbit_utils.vhost_queue_info('openstack'),
                          [{'name': 'a_sample_queue', 'messages': 0,
                            'consumers': 1},
@@ -230,19 +305,59 @@ class UtilsTests(CharmTestCase):
                            'consumers': 0},
                           {'name': 'myqueue', 'messages': 0, 'consumers': 1}])
 
+    @mock.patch('rabbit_utils.caching_cmp_pkgrevno')
     @mock.patch('rabbit_utils.subprocess')
-    def test_nodes_solo(self, mock_subprocess):
+    def test_vhost_queue_info_382(self, mock_subprocess, mock_cmp_pkgrevno):
+        '''Ensure vhost_queue_info parses output into the proper format/info'''
+        mock_subprocess.check_output.return_value = \
+            RABBITMQCTL_LIST_QUEUES_382
+        mock_cmp_pkgrevno.return_value = 0
+        self.assertEqual(rabbit_utils.vhost_queue_info('openstack'),
+                         [{'name': 'a_sample_queue', 'messages': 0,
+                           'consumers': 1},
+                          {'name': 'cinder-scheduler.cinder', 'messages': 0,
+                           'consumers': 1},
+                          {'name': 'cinder-fanout-12345', 'messages': 250,
+                           'consumers': 0},
+                          {'name': 'myqueue', 'messages': 0, 'consumers': 1}])
+
+    @mock.patch('rabbit_utils.caching_cmp_pkgrevno')
+    @mock.patch('rabbit_utils.subprocess')
+    def test_nodes_solo(self, mock_subprocess, mock_cmp_pkgrevno):
         '''Ensure cluster_status can be parsed for a single unit deployment'''
         mock_subprocess.check_output.return_value = \
             RABBITMQCTL_CLUSTERSTATUS_SOLO
+        mock_cmp_pkgrevno.return_value = -1
         self.assertEqual(rabbit_utils.nodes(),
                          ['rabbit@juju-devel3-machine-14'])
 
+    @mock.patch('rabbit_utils.caching_cmp_pkgrevno')
     @mock.patch('rabbit_utils.subprocess')
-    def test_running_nodes_solo(self, mock_subprocess):
+    def test_nodes_solo_382(self, mock_subprocess, mock_cmp_pkgrevno):
+        '''Ensure cluster_status can be parsed for a single unit deployment'''
+        mock_subprocess.check_output.return_value = \
+            RABBITMQCTL_CLUSTERSTATUS_SOLO_382
+        mock_cmp_pkgrevno.return_value = 0
+        self.assertEqual(rabbit_utils.nodes(),
+                         ['rabbit@juju-devel3-machine-14'])
+
+    @mock.patch('rabbit_utils.caching_cmp_pkgrevno')
+    @mock.patch('rabbit_utils.subprocess')
+    def test_running_nodes_solo(self, mock_subprocess, mock_cmp_pkgrevno):
         '''Ensure cluster_status can be parsed for a single unit deployment'''
         mock_subprocess.check_output.return_value = \
             RABBITMQCTL_CLUSTERSTATUS_SOLO
+        mock_cmp_pkgrevno.return_value = -1
+        self.assertEqual(rabbit_utils.running_nodes(),
+                         ['rabbit@juju-devel3-machine-14'])
+
+    @mock.patch('rabbit_utils.caching_cmp_pkgrevno')
+    @mock.patch('rabbit_utils.subprocess')
+    def test_running_nodes_solo_382(self, mock_subprocess, mock_cmp_pkgrevno):
+        '''Ensure cluster_status can be parsed for a single unit deployment'''
+        mock_subprocess.check_output.return_value = \
+            RABBITMQCTL_CLUSTERSTATUS_SOLO_382
+        mock_cmp_pkgrevno.return_value = 0
         self.assertEqual(rabbit_utils.running_nodes(),
                          ['rabbit@juju-devel3-machine-14'])
 
@@ -702,6 +817,7 @@ class UtilsTests(CharmTestCase):
         rabbit_utils.forget_cluster_node('a')
         mock_rabbitmqctl.assert_called_with('forget_cluster_node', 'a')
 
+    @mock.patch('rabbit_utils.caching_cmp_pkgrevno')
     @mock.patch('rabbit_utils.forget_cluster_node')
     @mock.patch('rabbit_utils.relations_for_id')
     @mock.patch('rabbit_utils.subprocess')
@@ -709,10 +825,12 @@ class UtilsTests(CharmTestCase):
     def test_check_cluster_memberships(self, mock_relation_ids,
                                        mock_subprocess,
                                        mock_relations_for_id,
-                                       mock_forget_cluster_node):
+                                       mock_forget_cluster_node,
+                                       mock_cmp_pkgrevno):
         mock_relation_ids.return_value = [0]
         mock_subprocess.check_output.return_value = \
             RABBITMQCTL_CLUSTERSTATUS_RUNNING
+        mock_cmp_pkgrevno.return_value = -1
         mock_relations_for_id.return_value = [
             {'clustered': 'juju-devel3-machine-14'},
             {'clustered': 'juju-devel3-machine-19'},
