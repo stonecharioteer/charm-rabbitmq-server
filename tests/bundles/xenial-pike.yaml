@@ -44,6 +44,5 @@ applications:
     options:
       openstack-origin: *openstack-origin
       admin-password: openstack
-      admin-token: ubuntutesting
   nrpe:
     charm: cs:nrpe

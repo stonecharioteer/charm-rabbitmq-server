@@ -2,7 +2,6 @@ charm_name: rabbitmq-server
 smoke_bundles:
   - bionic-train
 gate_bundles:
-  - trusty-mitaka
   - xenial-mitaka
   - xenial-ocata
   - xenial-pike
@@ -11,6 +10,7 @@ gate_bundles:
   - bionic-rocky
   - bionic-stein
   - bionic-train
+  - trusty-mitaka
 dev_bundles:
 tests:
   - zaza.openstack.charm_tests.rabbitmq_server.tests.RmqTests
