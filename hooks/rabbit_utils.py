@@ -468,7 +468,7 @@ def cluster_wait():
 
 def start_app():
     ''' Start the rabbitmq app and wait until it is fully started '''
-    status_set('maintenance', 'Starting rabbitmq applilcation')
+    status_set('maintenance', 'Starting rabbitmq application')
     rabbitmqctl('start_app')
     wait_app()
 
