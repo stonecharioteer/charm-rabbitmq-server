@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import os
 import re
 import sys
@@ -177,12 +178,20 @@ def list_vhosts():
     Returns a list of all the available vhosts
     """
     try:
-        output = subprocess.check_output([RABBITMQ_CTL, 'list_vhosts'])
+        cmd = [RABBITMQ_CTL, 'list_vhosts']
+        # NOTE(ajkavanagh): In focal and above, rabbitmq-server now has a
+        # --formatter option.
+        if caching_cmp_pkgrevno('rabbitmq-server', '3.8.2') >= 0:
+            cmd.append('--formatter=json')
+        output = subprocess.check_output(cmd)
         output = output.decode('utf-8')
 
+        if caching_cmp_pkgrevno('rabbitmq-server', '3.8.2') >= 0:
+            decoded = json.loads(output)
+            return [l['name'] for l in decoded]
         # NOTE(jamespage): Earlier rabbitmqctl versions append "...done"
         #                  to the output of list_vhosts
-        if '...done' in output:
+        elif '...done' in output:
             return output.split('\n')[1:-2]
         else:
             return output.split('\n')[1:-1]
@@ -199,12 +208,22 @@ def vhost_queue_info(vhost):
     """
     cmd = [RABBITMQ_CTL, '-p', vhost, 'list_queues',
            'name', 'messages', 'consumers']
+    # NOTE(ajkavanagh): In focal and above, rabbitmq-server now has a
+    # --formatter option.
+    if caching_cmp_pkgrevno('rabbitmq-server', '3.8.2') >= 0:
+        cmd.append('--formatter=json')
     output = subprocess.check_output(cmd).decode('utf-8')
 
     queue_info = []
+
+    if caching_cmp_pkgrevno('rabbitmq-server', '3.8.2') >= 0:
+        decoded = json.loads(output)
+        # note that the json is already in the desired output of queue_info
+        # below
+        return decoded
     # NOTE(jamespage): Earlier rabbitmqctl versions append "...done"
     #                  to the output of list_queues
-    if '...done' in output:
+    elif '...done' in output:
         queues = output.split('\n')[1:-2]
     else:
         queues = output.split('\n')[1:-1]
@@ -233,8 +252,20 @@ def create_vhost(vhost):
 
 def user_exists(user):
     cmd = [RABBITMQ_CTL, 'list_users']
+    # NOTE(ajkavanagh): In focal and above, rabbitmq-server now has a
+    # --formatter option.
+    if caching_cmp_pkgrevno('rabbitmq-server', '3.8.2') >= 0:
+        cmd.append('--formatter=json')
+        out = subprocess.check_output(cmd).decode('utf-8')
+        decoded = json.loads(out)
+        users = [l['user'] for l in decoded]
+        return user in users
+
+    # NOTE(ajkavanagh): pre 3.8.2 the code needs to deal with just a text
+    # output
     out = subprocess.check_output(cmd).decode('utf-8')
-    for line in out.split('\n')[1:]:
+    lines = out.split('\n')[1:]
+    for line in lines:
         _user = line.split('\t')[0]
         if _user == user:
             return True
@@ -314,7 +345,7 @@ def set_ha_mode(vhost, mode, params=None, sync_mode='automatic'):
                              "all, exactly, nodes"))
 
     log("Setting HA policy to vhost '%s'" % vhost, level='INFO')
-    set_policy(vhost, 'HA', '^(?!amq\.).*', value)
+    set_policy(vhost, 'HA', r'^(?!amq\.).*', value)
 
 
 def clear_ha_mode(vhost, name='HA', force=False):
@@ -430,7 +461,7 @@ def wait_app():
         try:
             status_cmd = ['rabbitmqctl', 'status']
             log(subprocess.check_output(status_cmd).decode('utf-8'), DEBUG)
-        except:
+        except Exception:
             pass
         raise ex
 
@@ -582,7 +613,7 @@ def leave_cluster():
         rabbitmqctl('reset')
         start_app()
         log('Successfully left cluster gracefully.')
-    except:
+    except Exception:
         # error, no nodes available for clustering
         log('Cannot leave cluster, we might be the last disc-node in the '
             'cluster.', level=ERROR)
@@ -770,9 +801,19 @@ def services():
 @cached
 def nodes(get_running=False):
     ''' Get list of nodes registered in the RabbitMQ cluster '''
+    # NOTE(ajkavanagh): In focal and above, rabbitmq-server now has a
+    # --formatter option.
+    if caching_cmp_pkgrevno('rabbitmq-server', '3.8.2') >= 0:
+        cmd = [RABBITMQ_CTL, 'cluster_status', '--formatter=json']
+        output = subprocess.check_output(cmd).decode('utf-8')
+        decoded = json.loads(output)
+        if get_running:
+            return decoded['running_nodes']
+        return decoded['disk_nodes'] + decoded['ram_nodes']
+
     out = rabbitmqctl_normalized_output('cluster_status')
     cluster_status = {}
-    for m in re.finditer("{([^,]+),(?!\[{)\[([^\]]*)", out):
+    for m in re.finditer(r"{([^,]+),(?!\[{)\[([^\]]*)", out):
         state = m.group(1)
         items = m.group(2).split(',')
         items = [x.replace("'", '').strip() for x in items]
@@ -813,7 +854,7 @@ def get_node_hostname(ip_addr):
     ''' Resolve IP address to hostname '''
     try:
         nodename = get_hostname(ip_addr, fqdn=False)
-    except:
+    except Exception:
         log('Cannot resolve hostname for %s using DNS servers' % ip_addr,
             level=WARNING)
         log('Falling back to use socket.gethostname()',
