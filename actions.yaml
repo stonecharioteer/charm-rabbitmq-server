@@ -42,3 +42,13 @@ forget-cluster-node:
     node:
       type: string
       description: Node name i.e. rabbit@<hostname>
+force-boot:
+  description: |
+    Set the `force_boot` flag and restart the RabbitMQ broker. This
+    action should be performed if a unit in the RabbitMQ cluster is
+    failing to boot after an uncontrolled shutdown of the cluster.
+    Note that units of a RabbitMQ cluster have to be booted in reverse
+    shutdown order. Also note that this potentially leads to a loss of
+    messages, in particular if the cluster received messages after the
+    unit was shut down.
+    See https://www.rabbitmq.com/clustering.html#restarting and LP: #1828988
