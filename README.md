@@ -1,111 +1,124 @@
 # Overview
 
-RabbitMQ is an implementation of AMQP, the emerging standard for high performance enterprise messaging.
+RabbitMQ is an implementation of AMQP, the emerging standard for high
+performance enterprise messaging. The RabbitMQ server is a robust and scalable
+implementation of an AMQP broker.
 
-The RabbitMQ server is a robust and scalable implementation of an AMQP broker.
-
-This charm deploys RabbitMQ server and provides AMQP connectivity to clients.
+The rabbitmq-server charm deploys RabbitMQ server and provides AMQP services to
+those charms that support the rabbitmq interface. The current list of such
+charms can be obtained from the [Charm Store][charms-requires-rabbitmq] (the
+charms officially supported by the OpenStack Charms project are published by
+'openstack-charmers').
 
 # Usage
 
-To deploy this charm:
+## Configuration
+
+This section covers common configuration options. See file `config.yaml` for
+the full list of options, along with their descriptions and default values.
+
+#### `min-cluster-size`
+
+The `min-cluster-size` option sets the number of rabbitmq-server units required
+to form its cluster. It is best practice to use this option as doing so ensures
+that the charm will wait until the cluster is up before accepting relations
+from other client applications.
+
+#### `source`
+
+The `source` option sets an alternate software source and can be passed during
+or after deployment. The default behaviour is to use the Ubuntu package archive
+for the underlying machine series. The most common value is a [UCA][uca] cloud
+pocket (e.g. 'cloud:bionic-train'). In the case of a non-OpenStack project,
+there is no guarantee that a candidate will be found in the stated UCA pocket.
+
+> **Note:** Changing the value of this option post-deployment will trigger a
+  software upgrade. See appendix [OpenStack upgrades][cdg-openstack-upgrades]
+  in the [OpenStack Charms Deployment Guide][cdg].
+
+#### `ssl`
+
+The `ssl` option enables encryption for client-server communication. It can
+take on several values:
+
+* 'off': disables SSL (the default)
+* 'on': enables SSL for compatible clients
+* 'only': enforces SSL
+
+## Deployment
+
+To deploy a single rabbitmq-server unit:
 
     juju deploy rabbitmq-server
 
-deploying multiple units will form a native RabbitMQ cluster:
+To make use of AMQP services, simply add a relation between rabbitmq-server and
+an application that supports the rabbitmq interface. For instance:
 
-    juju deploy -n 3 rabbitmq-server
-    juju config rabbitmq-server min-cluster-size=3
+    juju add-relation rabbitmq-server:amqp nova-cloud-controller:amqp
 
-To make use of AMQP services, simply relate other charms that support the rabbitmq interface:
+## High availability
 
-    juju add-relation rabbitmq-server nova-cloud-controller
+When more than one unit is deployed the charm will bring up a native RabbitMQ
+HA active/active cluster. The ``min-cluster-size`` option should be used (see
+description above).
 
-# Clustering
+To deploy a three-node cluster:
 
-When more than one unit of the charm is deployed the charm will bring up a
-native RabbitMQ cluster. The process of clustering the units together takes
-some time. Due to the nature of asynchronous hook execution, it is possible
-client relationship hooks are executed before the cluster is complete.
-In some cases, this can lead to client charm errors.
+    juju deploy -n 3 --config min-cluster-size=3 rabbitmq-server
 
-To guarantee client relation hooks will not be executed until clustering is
-completed use the min-cluster-size configuration setting:
+### SSL
 
-    juju deploy -n 3 rabbitmq-server
-    juju config rabbitmq-server min-cluster-size=3
+Communication between the AMQP message queue and client services (OpenStack
+applications) can be encrypted with SSL. There are two methods for managing
+keys and certificates:
 
-When min-cluster-size is not set the charm will still cluster, however,
-there are no guarantees client relation hooks will not execute before it is
-complete.
+1. with Vault
+1. manually (via `openssl` commands and charm options)
 
-Single unit deployments behave as expected.
+Vault can set up private keys and server certificates for an application. It
+also stores a central CA certificate for the cloud. See the
+[vault][vault-charm] charm for more information.
 
-# Configuration: SSL
+Vault is the recommended method and is what will be covered here.
 
-Generate an unencrypted RSA private key for the servers and a certificate:
+Enable SSL by passing the `ssl` option (see description above) to the deployed
+rabbitmq-server application:
 
-    openssl genrsa -out rabbit-server-privkey.pem 2048
+    juju config rabbitmq-server ssl=only
 
-Get an X.509 certificate. This can be self-signed, for example:
+The private key and server certificate (and its signing) are managed via a
+relation made to the vault application:
 
-    openssl req -batch -new -x509 -key rabbit-server-privkey.pem -out rabbit-server-cert.pem -days 10000
+    juju add-relation rabbitmq-server:certificates vault:certificates
 
-Deploy the service:
+## Actions
 
-    juju deploy rabbitmq-server
+This section lists Juju [actions][juju-docs-actions] supported by the charm.
+Actions allow specific operations to be performed on a per-unit basis.
 
-Enable SSL, passing in the key and certificate as configuration settings:
+* `check-queues`
+* `cluster-status`
+* `complete-cluster-series-upgrade`
+* `list-unconsumed-queues`
+* `pause`
+* `resume`
 
-    juju set rabbitmq-server ssl_enabled=True ssl_key="`cat rabbit-server-privkey.pem`" ssl_cert="`cat rabbit-server-cert.pem`"
+To display action descriptions run `juju actions rabbitmq-server`. If the charm
+is not deployed then see file ``actions.yaml``.
 
-# Configuration: source
+# Bugs
 
-To change the source that the charm uses for packages:
+Please report bugs on [Launchpad][lp-bugs-charm-rabbitmq-server].
 
-    juju set rabbitmq-server source="cloud:precise-icehouse"
+For general charm questions refer to the [OpenStack Charm Guide][cg].
 
-This will enable the Icehouse pocket of the Cloud Archive (which contains a new version of RabbitMQ) and upgrade the install to the new version.
+<!-- LINKS -->
 
-The source option can be used in a few different ways:
-
-    source="ppa:james-page/testing" - use the testing PPA owned by james-page
-    source="http://myrepo/ubuntu main" - use the repository located at the provided URL
-
-The charm also supports use of arbitrary archive key's for use with private repositories:
-
-    juju set rabbitmq-server key="C6CEA0C9"
-
-Note that in clustered configurations, the upgrade can be a bit racey as the services restart and re-cluster; this is resolvable using (with Juju version < 2.0) :
-
-    juju resolved --retry rabbitmq-server/1
-
-Or using the following command with Juju 2.0 and above:
-
-    juju resolved rabbitmq-server/1
-
-# Network Spaces support
-
-This charm supports the use of Juju Network Spaces, allowing the charm to be bound to network space configurations managed directly by Juju.  This is only supported with Juju 2.0 and above.
-
-The amqp relation can be bound to a specific network space, allowing client connections to be routed over specific networks:
-
-    juju deploy rabbitmq-server --bind "amqp=internal-space"
-
-alternatively this can also be provided as part of a juju native bundle configuration:
-
-    rabbitmq-server:
-      charm: cs:xenial/rabbitmq-server
-      num_units: 1
-      bindings:
-        amqp: internal-space
-
-**NOTE:** Spaces must be configured in the underlying provider prior to attempting to use them.
-
-**NOTE:** Existing deployments using the access-network configuration option will continue to function; this option is preferred over any network space binding provided if set.
-
-# Contact Information
-
-Author: OpenStack Charmers <openstack-charmers@lists.ubuntu.com>
-Bugs: http://bugs.launchpad.net/charms/+source/rabbitmq-server/+filebug
-Location: http://jujucharms.com/rabbitmq-server
+[cg]: https://docs.openstack.org/charm-guide
+[cdg]: https://docs.openstack.org/project-deploy-guide/charm-deployment-guide
+[cdg-openstack-upgrades]: https://docs.openstack.org/project-deploy-guide/charm-deployment-guide/latest/app-upgrade-openstack.html
+[lp-bugs-charm-rabbitmq-server]: https://bugs.launchpad.net/charm-rabbitmq-server/+filebug
+[juju-docs-actions]: https://jaas.ai/docs/actions
+[charms-requires-rabbitmq]: https://jaas.ai/search?requires=rabbitmq
+[vault-charm]: https://jaas.ai/vault
+[uca]: https://wiki.ubuntu.com/OpenStack/CloudArchive
