@@ -1,6 +1,6 @@
 charm_name: rabbitmq-server
 smoke_bundles:
-  - bionic-train
+  - focal-ussuri
 gate_bundles:
   - xenial-mitaka
   - xenial-ocata
@@ -10,7 +10,12 @@ gate_bundles:
   - bionic-rocky
   - bionic-stein
   - bionic-train
+  - bionic-ussuri
+  - focal-ussuri
   - trusty-mitaka
 dev_bundles:
 tests:
   - zaza.openstack.charm_tests.rabbitmq_server.tests.RmqTests
+tests_options:
+  force_deploy:
+    - focal-ussuri
