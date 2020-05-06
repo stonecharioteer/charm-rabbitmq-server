@@ -39,6 +39,9 @@ from charmhelpers.core.hookenv import (
     action_get,
     is_leader,
     leader_set,
+    log,
+    INFO,
+    ERROR,
 )
 
 from hooks.rabbit_utils import (
@@ -117,6 +120,7 @@ def complete_cluster_series_upgrade(args):
 
 def list_unconsumed_queues(args):
     """List queues which are unconsumed in RabbitMQ"""
+    log("Listing unconsumed queues...", level=INFO)
     count = 0
     for vhost in list_vhosts():
         try:
@@ -131,15 +135,22 @@ def list_unconsumed_queues(args):
 
         for queue in queue_info_dict:
             if queue['consumers'] == 0:
-                vhostqueue = "unconsumed-queues.{}".format(count)
-                value = OrderedDict((
-                    ('vhost', vhost),
-                    ('name', queue['name']),
-                    ('messages', queue['messages']),
-                ))
-                action_set({vhostqueue: json.dumps(value)})
+                vhostqueue = ''
+                value = ''
+                try:
+                    vhostqueue = "unconsumed-queues.{}".format(count)
+                    value = OrderedDict((
+                        ('vhost', vhost),
+                        ('name', queue['name']),
+                        ('messages', queue['messages']),
+                    ))
+                    action_set({vhostqueue: json.dumps(value)})
+                except Exception as e:
+                    log('{}, vhostqueue={}, value={}'.format(
+                        e, vhostqueue, value), level=ERROR)
                 count += 1
 
+    log("{} unconsumed queue(s) found".format(count), level=INFO)
     action_set({'unconsumed-queue-count': count})
 
 
