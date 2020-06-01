@@ -964,7 +964,9 @@ def update_status():
     #
     # Have a look at the docstring of the stop() function for detailed
     # explanation.
-    if is_leader() and not is_unit_paused_set():
+    kvstore = kv()
+    if (is_leader() and not is_unit_paused_set() and not
+            kvstore.get(INITIAL_CLIENT_UPDATE_KEY, False)):
         rabbit.check_cluster_memberships()
 
 if __name__ == '__main__':
