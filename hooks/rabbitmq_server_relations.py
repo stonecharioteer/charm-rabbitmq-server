@@ -24,9 +24,11 @@ import subprocess
 _path = os.path.dirname(os.path.realpath(__file__))
 _root = os.path.abspath(os.path.join(_path, '..'))
 
+
 def _add_path(path):
     if path not in sys.path:
         sys.path.insert(1, path)
+
 
 _add_path(_root)
 
@@ -49,7 +51,7 @@ except ImportError:
     else:
         subprocess.check_call(['apt-get', 'install', '-y',
                                'python3-requests'])
-    import requests  # flake8: noqa
+    import requests  # noqa: F401
 
 import rabbit_net_utils
 import rabbit_utils as rabbit
@@ -67,7 +69,6 @@ from charmhelpers.contrib.hahelpers.cluster import (
 from charmhelpers.contrib.openstack.utils import (
     is_unit_paused_set,
     set_unit_upgrading,
-    is_unit_upgrading_set,
     clear_unit_paused,
     clear_unit_upgrading,
 )
@@ -126,7 +127,6 @@ from charmhelpers.contrib.peerstorage import (
     peer_store,
     peer_store_and_set,
     peer_retrieve_by_prefix,
-    leader_get,
 )
 
 from charmhelpers.core.unitdata import kv
@@ -436,7 +436,8 @@ def cluster_changed(relation_id=None, remote_unit=None):
         return
 
     if rabbit.is_sufficient_peers():
-        # NOTE(freyes): all the nodes need to marked as 'clustered' (LP: #1691510)
+        # NOTE(freyes): all the nodes need to marked as 'clustered'
+        # (LP: #1691510)
         rabbit.cluster_with()
 
     if not is_leader() and is_relation_made('nrpe-external-master'):
@@ -714,16 +715,14 @@ def update_nrpe_checks():
         )
     if config('management_plugin'):
         # add NRPE check
+        _check_cmd = (
+            '{}/check_rabbitmq_cluster.py --port {} --user {} --password {}'
+            .format(NAGIOS_PLUGINS, rabbit.get_managment_port(),
+                    user, password))
         nrpe_compat.add_check(
             shortname=rabbit.RABBIT_USER + '_cluster',
             description='Check RabbitMQ Cluster',
-            check_cmd='{}/check_rabbitmq_cluster.py --port {} --user {} --password {}'.format(
-                        NAGIOS_PLUGINS,
-                        rabbit.get_managment_port(),
-                        user,
-                        password
-            )
-        )
+            check_cmd=_check_cmd)
 
     nrpe_compat.write()
 
@@ -968,6 +967,7 @@ def update_status():
     if (is_leader() and not is_unit_paused_set() and not
             kvstore.get(INITIAL_CLIENT_UPDATE_KEY, False)):
         rabbit.check_cluster_memberships()
+
 
 if __name__ == '__main__':
     try:

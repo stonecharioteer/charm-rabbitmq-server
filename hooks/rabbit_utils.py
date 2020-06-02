@@ -188,7 +188,7 @@ def list_vhosts():
 
         if caching_cmp_pkgrevno('rabbitmq-server', '3.8.2') >= 0:
             decoded = json.loads(output)
-            return [l['name'] for l in decoded]
+            return [ll['name'] for ll in decoded]
         # NOTE(jamespage): Earlier rabbitmqctl versions append "...done"
         #                  to the output of list_vhosts
         elif '...done' in output:
@@ -258,7 +258,7 @@ def user_exists(user):
         cmd.append('--formatter=json')
         out = subprocess.check_output(cmd).decode('utf-8')
         decoded = json.loads(out)
-        users = [l['user'] for l in decoded]
+        users = [ll['user'] for ll in decoded]
         return user in users
 
     # NOTE(ajkavanagh): pre 3.8.2 the code needs to deal with just a text
@@ -658,17 +658,17 @@ def execute(cmd, die=False, echo=False):
     stdout = ""
     stderr = ""
 
-    def print_line(l):
+    def print_line(ll):
         if echo:
-            print(l.strip('\n'))
+            print(ll.strip('\n'))
             sys.stdout.flush()
 
-    for l in iter(p.stdout.readline, ''):
-        print_line(l)
-        stdout += l
-    for l in iter(p.stderr.readline, ''):
-        print_line(l)
-        stderr += l
+    for ll in iter(p.stdout.readline, ''):
+        print_line(ll)
+        stdout += ll
+    for ll in iter(p.stderr.readline, ''):
+        print_line(ll)
+        stderr += ll
 
     p.communicate()
     rc = p.returncode
@@ -1073,7 +1073,7 @@ def is_sufficient_peers():
             return False
         else:
             log("Sufficient number of peer units to form cluster {}"
-                "".format(min_size, level=DEBUG))
+                "".format(min_size), level=DEBUG)
             return True
     else:
         log("min-cluster-size is not defined, race conditions may occur if "
