@@ -1,6 +1,6 @@
 bin
 revision
-.coverage
+.coverage*
 .venv
 .tox
 .testrepository
@@ -10,3 +10,4 @@ __pycache__/
 .project
 .pydevproject
 .stestr
+.unit-state.db
