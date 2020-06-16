@@ -91,7 +91,7 @@ if __name__ == '__main__':
         partitions = len(json.loads(partition_data)['partitions'])
         cluster = len(json.loads(partition_data)['cluster_links'])
 
-    except:
+    except json.decoder.JSONDecodeError:
         print(
             "UNKNOWN: Could not parse cluster status data returned by RabbitMQ"
         )

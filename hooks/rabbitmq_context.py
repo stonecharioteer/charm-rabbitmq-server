@@ -256,7 +256,7 @@ class RabbitMQEnvContext(object):
 
         if os.path.exists(ENV_CONF):
             for line in open(ENV_CONF).readlines():
-                if re.search('^\s*#', line) or not line.strip('\n'):
+                if re.search(r'^\s*#', line) or not line.strip('\n'):
                     # ignore commented or blank lines
                     continue
 
