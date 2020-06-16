@@ -17,7 +17,7 @@ import json
 import os
 import re
 from collections import OrderedDict
-from subprocess import check_output, CalledProcessError
+from subprocess import check_output, CalledProcessError, PIPE
 import sys
 
 
@@ -43,6 +43,10 @@ from charmhelpers.core.hookenv import (
     log,
     INFO,
     ERROR,
+)
+
+from charmhelpers.core.host import (
+    cmp_pkgrevno,
 )
 
 from hooks.rabbit_utils import (
@@ -119,6 +123,30 @@ def complete_cluster_series_upgrade(args):
     assess_status(ConfigRenderer(CONFIG_FILES))
 
 
+def forget_cluster_node(args):
+    """Remove previously departed node from cluster."""
+    node = (action_get('node'))
+    if cmp_pkgrevno('rabbitmq-server', '3.0.0') < 0:
+        action_fail(
+            'rabbitmq-server version < 3.0.0, '
+            'forget_cluster_node not supported.')
+        return
+    try:
+        output = check_output(
+            ['rabbitmqctl', 'forget_cluster_node', node],
+            stderr=PIPE)
+        action_set({'output': output.decode('utf-8'), 'outcome': 'Success'})
+    except CalledProcessError as e:
+        action_set({'output': e.stderr})
+        if e.returncode == 2:
+            action_fail(
+                "Unable to remove node '{}' from cluster. It is either still "
+                "running or already removed. (Output: '{}')"
+                .format(node, e.stderr))
+        else:
+            action_fail('Failed running rabbitmqctl forget_cluster_node')
+
+
 def list_unconsumed_queues(args):
     """List queues which are unconsumed in RabbitMQ"""
     log("Listing unconsumed queues...", level=INFO)
@@ -163,6 +191,7 @@ ACTIONS = {
     "cluster-status": cluster_status,
     "check-queues": check_queues,
     "complete-cluster-series-upgrade": complete_cluster_series_upgrade,
+    "forget-cluster-node": forget_cluster_node,
     "list-unconsumed-queues": list_unconsumed_queues,
 }
 

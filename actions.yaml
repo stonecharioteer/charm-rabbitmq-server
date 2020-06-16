@@ -35,3 +35,10 @@ list-unconsumed-queues:
           $vhost:
             "0": queue_name1 - 0
             "1": $queue_name - $num_messages
+forget-cluster-node:
+  description: |-
+    Remove a dead node from the cluster mnesia db.
+  params:
+    node:
+      type: string
+      description: Node name i.e. rabbit@<hostname>

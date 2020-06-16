@@ -572,38 +572,23 @@ def cluster_with():
 
 
 def check_cluster_memberships():
-    ''' Iterate over RabbitMQ node list, compare it to charm cluster
-        relationships, and forget about any nodes previously abruptly removed
-        from the cluster '''
+    """Check for departed nodes.
+
+    Iterate over RabbitMQ node list, compare it to charm cluster relationships,
+    and notify about any nodes previously abruptly removed from the cluster.
+
+    :returns: String node name or None
+    :rtype: Union[str, None]
+    """
     for rid in relation_ids('cluster'):
         for node in nodes():
             if not any(rel.get('clustered', None) == node.split('@')[1]
                        for rel in relations_for_id(relid=rid)) and \
                     node not in running_nodes():
                 log("check_cluster_memberships(): '{}' in nodes but not in "
-                    "charm relations or running_nodes, telling RabbitMQ to "
-                    "forget about it.".format(node), level=DEBUG)
-                forget_cluster_node(node)
-
-
-def forget_cluster_node(node):
-    ''' Remove previously departed node from cluster '''
-    if cmp_pkgrevno('rabbitmq-server', '3.0.0') < 0:
-        log('rabbitmq-server version < 3.0.0, '
-            'forget_cluster_node not supported.', level=DEBUG)
-        return
-    try:
-        rabbitmqctl('forget_cluster_node', node)
-    except subprocess.CalledProcessError as e:
-        if e.returncode == 2:
-            log("Unable to remove node '{}' from cluster. It is either still "
-                "running or already removed. (Output: '{}')"
-                "".format(node, e.output), level=ERROR)
-            return
-        else:
-            raise
-    log("Removed previously departed node from cluster: '{}'."
-        "".format(node), level=INFO)
+                    "charm relations or running_nodes."
+                    .format(node), level=DEBUG)
+                return node
 
 
 def leave_cluster():
@@ -885,23 +870,36 @@ def assess_cluster_status(*args):
 
     # NOTE: ensure rabbitmq is actually installed before doing
     #       any checks
-    if rabbitmq_is_installed():
-        # Clustering Check
-        if not is_sufficient_peers():
-            return 'waiting', ("Waiting for all {} peers to complete the "
-                               "cluster.".format(config('min-cluster-size')))
-        peer_ids = relation_ids('cluster')
-        if peer_ids and len(related_units(peer_ids[0])):
-            if not clustered():
-                return 'waiting', 'Unit has peers, but RabbitMQ not clustered'
-        # General status check
-        ret = wait_app()
-        if ret:
-            # we're active - so just return the 'active' state, but if 'active'
-            # is returned, then it is ignored by the assess_status system.
-            return 'active', "message is ignored"
-    else:
+    if not rabbitmq_is_installed():
         return 'waiting', 'RabbitMQ is not yet installed'
+
+    # Sufficient peers
+    if not is_sufficient_peers():
+        return 'waiting', ("Waiting for all {} peers to complete the "
+                           "cluster.".format(config('min-cluster-size')))
+    # Clustering Check
+    peer_ids = relation_ids('cluster')
+    if peer_ids and len(related_units(peer_ids[0])):
+        if not clustered():
+            return 'waiting', 'Unit has peers, but RabbitMQ not clustered'
+
+    # Departed nodes
+    departed_node = check_cluster_memberships()
+    if departed_node:
+        return (
+            'blocked',
+            'Node {} in the cluster but not running. If it is a departed '
+            'node, remove with `forget-cluster-node` action'
+            .format(departed_node))
+
+    # General status check
+    if not wait_app():
+        return (
+            'blocked', 'Unable to determine if the rabbitmq service is up')
+
+    # we're active - so just return the 'active' state, but if 'active'
+    # is returned, then it is ignored by the assess_status system.
+    return 'active', "message is ignored"
 
 
 def restart_on_change(restart_map, stopstart=False):

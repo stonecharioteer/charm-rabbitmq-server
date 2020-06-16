@@ -16,7 +16,6 @@ import collections
 from functools import wraps
 import mock
 import os
-import subprocess
 import sys
 import tempfile
 
@@ -41,9 +40,11 @@ TO_PATCH = [
     'relation_ids',
     'relation_get',
     'relation_set',
+    'related_units',
     'leader_get',
     'config',
     'is_unit_paused_set',
+    'local_unit',
 ]
 
 
@@ -785,47 +786,13 @@ class UtilsTests(CharmTestCase):
         mock_get_upstream_version.return_value = '3.5.7'
         self.assertEqual(rabbit_utils.get_managment_port(), 15672)
 
-    @mock.patch('rabbit_utils.rabbitmqctl')
-    @mock.patch('rabbit_utils.cmp_pkgrevno')
-    def test_forget_cluster_node_old_rabbitmq(self, mock_cmp_pkgrevno,
-                                              mock_rabbitmqctl):
-        mock_cmp_pkgrevno.return_value = -1
-        rabbit_utils.forget_cluster_node('a')
-        self.assertFalse(mock_rabbitmqctl.called)
-
-    @mock.patch('rabbit_utils.log')
-    @mock.patch('subprocess.check_call')
-    @mock.patch('rabbit_utils.cmp_pkgrevno')
-    def test_forget_cluster_node_subprocess_fails(self, mock_cmp_pkgrevno,
-                                                  mock_check_call,
-                                                  mock_log):
-        mock_cmp_pkgrevno.return_value = 0
-
-        def raise_error(x):
-            raise subprocess.CalledProcessError(2, x)
-        mock_check_call.side_effect = raise_error
-
-        rabbit_utils.forget_cluster_node('a')
-        mock_log.assert_called_with("Unable to remove node 'a' from cluster. "
-                                    "It is either still running or already "
-                                    "removed. (Output: 'None')", level='ERROR')
-
-    @mock.patch('rabbit_utils.rabbitmqctl')
-    @mock.patch('rabbit_utils.cmp_pkgrevno')
-    def test_forget_cluster_node(self, mock_cmp_pkgrevno, mock_rabbitmqctl):
-        mock_cmp_pkgrevno.return_value = 1
-        rabbit_utils.forget_cluster_node('a')
-        mock_rabbitmqctl.assert_called_with('forget_cluster_node', 'a')
-
     @mock.patch('rabbit_utils.caching_cmp_pkgrevno')
-    @mock.patch('rabbit_utils.forget_cluster_node')
     @mock.patch('rabbit_utils.relations_for_id')
     @mock.patch('rabbit_utils.subprocess')
     @mock.patch('rabbit_utils.relation_ids')
     def test_check_cluster_memberships(self, mock_relation_ids,
                                        mock_subprocess,
                                        mock_relations_for_id,
-                                       mock_forget_cluster_node,
                                        mock_cmp_pkgrevno):
         mock_relation_ids.return_value = [0]
         mock_subprocess.check_output.return_value = \
@@ -837,9 +804,9 @@ class UtilsTests(CharmTestCase):
             {'dummy-entry': 'to validate behaviour on relations without '
                             'clustered key in dict'},
         ]
-        rabbit_utils.check_cluster_memberships()
-        mock_forget_cluster_node.assert_called_with(
-            'rabbit@juju-devel3-machine-42')
+        self.assertEqual(
+            "rabbit@juju-devel3-machine-42",
+            rabbit_utils.check_cluster_memberships())
 
     @mock.patch('rabbitmq_context.psutil.NUM_CPUS', 2)
     @mock.patch('rabbitmq_context.relation_ids')
@@ -912,3 +879,72 @@ class UtilsTests(CharmTestCase):
             '--apply-to', 'queues',
             '-p', 'test'
         )
+
+    @mock.patch.object(rabbit_utils, 'wait_app')
+    @mock.patch.object(rabbit_utils, 'check_cluster_memberships')
+    @mock.patch.object(rabbit_utils, 'clustered')
+    @mock.patch.object(rabbit_utils, 'is_sufficient_peers')
+    @mock.patch.object(rabbit_utils, 'is_unit_paused_set')
+    @mock.patch.object(rabbit_utils, 'rabbitmq_is_installed')
+    def test_assess_cluster_status(
+            self, rabbitmq_is_installed, is_unit_paused_set,
+            is_sufficient_peers, clustered, check_cluster_memberships,
+            wait_app):
+
+        self.relation_ids.return_value = ["cluster:1"]
+        self.related_units.return_value = ["rabbitmq-server/1"]
+        _min = 3
+        self.config.return_value = _min
+
+        # Paused
+        is_unit_paused_set.return_value = True
+        _expected = ("maintenance", "Paused")
+        self.assertEqual(_expected, rabbit_utils.assess_cluster_status())
+
+        # Not installed
+        is_unit_paused_set.return_value = False
+        rabbitmq_is_installed.return_value = False
+        _expected = ("waiting", "RabbitMQ is not yet installed")
+        self.assertEqual(_expected, rabbit_utils.assess_cluster_status())
+
+        # Not sufficient peers
+        rabbitmq_is_installed.return_value = True
+        is_sufficient_peers.return_value = False
+        _expected = (
+            "waiting",
+            "Waiting for all {} peers to complete the cluster.".format(_min))
+        self.assertEqual(_expected, rabbit_utils.assess_cluster_status())
+
+        # Nodes not clustered
+        is_sufficient_peers.return_value = True
+        clustered.return_value = False
+        _expected = (
+            "waiting",
+            "Unit has peers, but RabbitMQ not clustered")
+        self.assertEqual(_expected, rabbit_utils.assess_cluster_status())
+
+        # Departed node
+        clustered.return_value = True
+        _departed_node = "rabbit@hostname"
+        check_cluster_memberships.return_value = _departed_node
+        _expected = (
+            "blocked",
+            "Node {} in the cluster but not running. If it is a departed "
+            "node, remove with `forget-cluster-node` action"
+            .format(_departed_node))
+        self.assertEqual(_expected, rabbit_utils.assess_cluster_status())
+
+        # Wait app does not return True
+        check_cluster_memberships.return_value = None
+        wait_app.return_value = None
+        _expected = (
+            "blocked",
+            "Unable to determine if the rabbitmq service is up")
+        self.assertEqual(_expected, rabbit_utils.assess_cluster_status())
+
+        # All OK
+        wait_app.return_value = True
+        _expected = (
+            "active",
+            "message is ignored")
+        self.assertEqual(_expected, rabbit_utils.assess_cluster_status())

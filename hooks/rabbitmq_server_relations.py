@@ -950,24 +950,6 @@ def certs_changed(relation_id=None, unit=None):
 def update_status():
     log('Updating status.')
 
-    # leader check for previously unsuccessful cluster departures
-    #
-    # This must be done here and not in the cluster-relation-departed hook.  At
-    # the point in time the cluster-relation-departed hook is called we know
-    # that a unit is departing.  We also know that RabbitMQ will not have
-    # noticed its departure yet.  We cannot remove a node pre-emptively.
-    #
-    # In the normal case the departing node should remove itself from the
-    # cluster in its stop hook.  We clean up the ones that for whatever reason
-    # are unable to clean up after themselves successfully here.
-    #
-    # Have a look at the docstring of the stop() function for detailed
-    # explanation.
-    kvstore = kv()
-    if (is_leader() and not is_unit_paused_set() and not
-            kvstore.get(INITIAL_CLIENT_UPDATE_KEY, False)):
-        rabbit.check_cluster_memberships()
-
 
 if __name__ == '__main__':
     try:
