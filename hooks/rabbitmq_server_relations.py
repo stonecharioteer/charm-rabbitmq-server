@@ -347,6 +347,10 @@ def amqp_changed(relation_id=None, remote_unit=None):
         peer_store_and_set(relation_id=relation_id,
                            relation_settings=relation_settings)
     elif not is_leader() and rabbit.client_node_is_ready():
+        if not rabbit.clustered():
+            log("This node is not clustered yet, defer sending data to client",
+                level=DEBUG)
+            return
         log("Propagating peer settings to all amqp relations", DEBUG)
 
         # NOTE(jamespage) clear relation to deal with data being
@@ -442,6 +446,8 @@ def cluster_changed(relation_id=None, remote_unit=None):
 
     if not is_leader() and is_relation_made('nrpe-external-master'):
         update_nrpe_checks()
+    # Local rabbit maybe clustered now so check and inform clients if needed.
+    update_clients()
 
 
 @hooks.hook('stop')
@@ -892,6 +898,7 @@ def leader_settings_changed():
         # using LE and peerstorage
         for rid in relation_ids('cluster'):
             relation_set(relation_id=rid, relation_settings={'cookie': cookie})
+    update_clients()
 
 
 def pre_install_hooks():
