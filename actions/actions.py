@@ -34,6 +34,11 @@ def _add_path(path):
 _add_path(_root)
 _add_path(_hooks)
 
+from charmhelpers.core.host import (
+    service_start,
+    service_stop,
+)
+
 from charmhelpers.core.hookenv import (
     action_fail,
     action_set,
@@ -183,6 +188,32 @@ def list_unconsumed_queues(args):
     action_set({'unconsumed-queue-count': count})
 
 
+def force_boot(args):
+    """Set the force_boot flag and start RabbitMQ broker"""
+    try:
+        service_stop('rabbitmq-server')
+    except CalledProcessError as e:
+        action_set({'output': e.output})
+        action_fail('Failed to stop rabbitmqctl service')
+        return False
+
+    try:
+        force_boot = check_output(['rabbitmqctl', 'force_boot'],
+                                  universal_newlines=True)
+        action_set({'output': force_boot})
+    except CalledProcessError as e:
+        action_set({'output': e.output})
+        action_fail('Failed to run rabbitmqctl force_boot')
+        return False
+
+    try:
+        service_start('rabbitmq-server')
+    except CalledProcessError as e:
+        action_set({'output': e.output})
+        action_fail('Failed to start rabbitmqctl service after force_boot')
+        return False
+
+
 # A dictionary of all the defined actions to callables (which take
 # parsed arguments).
 ACTIONS = {
@@ -193,6 +224,7 @@ ACTIONS = {
     "complete-cluster-series-upgrade": complete_cluster_series_upgrade,
     "forget-cluster-node": forget_cluster_node,
     "list-unconsumed-queues": list_unconsumed_queues,
+    "force-boot": force_boot,
 }
 
 

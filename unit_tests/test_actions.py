@@ -182,6 +182,55 @@ class ListUnconsumedQueuesTestCase(CharmTestCase):
             "Failed to query RabbitMQ vhost / queues")
 
 
+class ForceBootTestCase(CharmTestCase):
+    """Tests for force-boot action.
+
+    """
+
+    def setUp(self):
+        super(ForceBootTestCase, self).setUp(
+            actions, ["service_stop", "service_start", "check_output",
+                      "action_set", "action_fail"])
+
+    def test_force_boot_fail_stop(self):
+        self.service_stop.side_effect = \
+            actions.CalledProcessError(1, "Failure")
+        actions.force_boot([])
+        self.service_stop.assert_called()
+        self.service_stop.assert_called_once_with('rabbitmq-server')
+        self.action_set.assert_called()
+        self.action_fail.assert_called_once_with(
+            'Failed to stop rabbitmqctl service')
+
+    def test_force_boot_fail(self):
+        self.check_output.side_effect = \
+            actions.CalledProcessError(1, "Failure")
+        actions.force_boot([])
+        self.service_stop.assert_called()
+        self.check_output.assert_called()
+        self.action_set.assert_called()
+        self.action_fail.assert_called_once_with(
+            'Failed to run rabbitmqctl force_boot')
+
+    def test_force_boot_fail_start(self):
+        self.service_start.side_effect = \
+            actions.CalledProcessError(1, "Failure")
+        actions.force_boot([])
+        self.service_start.assert_called()
+        self.service_start.assert_called_once_with('rabbitmq-server')
+        self.action_set.assert_called()
+        self.action_fail.assert_called_once_with(
+            'Failed to start rabbitmqctl service after force_boot')
+
+    def test_force_boot(self):
+        output = 'Forcing boot for Mnesia dir ' \
+            '/var/lib/rabbitmq/mnesia/rabbit@juju-f52a8d-rabbitmq-12'
+        self.check_output.return_value = output
+        actions.force_boot([])
+        self.check_output.assert_called()
+        self.action_set.assert_called_once_with({'output': output})
+
+
 class MainTestCase(CharmTestCase):
 
     def setUp(self):
