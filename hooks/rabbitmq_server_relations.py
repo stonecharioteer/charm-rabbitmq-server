@@ -263,11 +263,6 @@ def update_clients():
         for rid in relation_ids('amqp'):
             for unit in related_units(rid):
                 amqp_changed(relation_id=rid, remote_unit=unit)
-        kvstore = kv()
-        update_done = kvstore.get(INITIAL_CLIENT_UPDATE_KEY, False)
-        if not update_done:
-            kvstore.set(key=INITIAL_CLIENT_UPDATE_KEY, value=True)
-            kvstore.flush()
 
 
 @validate_amqp_config_tracker
@@ -278,6 +273,7 @@ def amqp_changed(relation_id=None, remote_unit=None):
         rabbit_net_utils.AMQP_INTERFACE,
         cidr_network=config(rabbit_net_utils.AMQP_OVERRIDE_CONFIG))
 
+    sent_update = False
     if rabbit.leader_node_is_ready():
         relation_settings = {'hostname': host_addr,
                              'private-address': host_addr}
@@ -346,6 +342,7 @@ def amqp_changed(relation_id=None, remote_unit=None):
                     ','.join(relation_settings.keys())), DEBUG)
         peer_store_and_set(relation_id=relation_id,
                            relation_settings=relation_settings)
+        sent_update = True
     elif not is_leader() and rabbit.client_node_is_ready():
         if not rabbit.clustered():
             log("This node is not clustered yet, defer sending data to client",
@@ -365,6 +362,12 @@ def amqp_changed(relation_id=None, remote_unit=None):
                 peerdb_settings['hostname'] = host_addr
                 peerdb_settings['private-address'] = host_addr
                 relation_set(relation_id=rel_id, **peerdb_settings)
+                sent_update = True
+    kvstore = kv()
+    update_done = kvstore.get(INITIAL_CLIENT_UPDATE_KEY, False)
+    if sent_update and not update_done:
+        kvstore.set(key=INITIAL_CLIENT_UPDATE_KEY, value=True)
+        kvstore.flush()
 
 
 @hooks.hook('cluster-relation-joined')
@@ -443,11 +446,12 @@ def cluster_changed(relation_id=None, remote_unit=None):
         # NOTE(freyes): all the nodes need to marked as 'clustered'
         # (LP: #1691510)
         rabbit.cluster_with()
+        # Local rabbit maybe clustered now so check and inform clients if
+        # needed.
+        update_clients()
 
     if not is_leader() and is_relation_made('nrpe-external-master'):
         update_nrpe_checks()
-    # Local rabbit maybe clustered now so check and inform clients if needed.
-    update_clients()
 
 
 @hooks.hook('stop')
@@ -970,6 +974,9 @@ if __name__ == '__main__':
     # amqp-relation-changed hooks
     kvstore = kv()
     if not kvstore.get(INITIAL_CLIENT_UPDATE_KEY, False):
+        log(
+            "Rerunning update_clients as initial update not yet performed",
+            level=DEBUG)
         update_clients()
 
     rabbit.assess_status(rabbit.ConfigRenderer(rabbit.CONFIG_FILES))
