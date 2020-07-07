@@ -981,12 +981,8 @@ def assess_status_func(configs):
             configs, {},
             charm_func=assess_cluster_status,
             services=services(), ports=None)
-        if state == 'active':
-            if clustered():
-                message = 'Unit is ready and clustered'
-            else:
-                state == 'waiting'
-                message = 'Waiting for internal clustering to complete'
+        if state == 'active' and clustered():
+            message = 'Unit is ready and clustered'
         # Remind the administrator cluster_series_upgrading is set.
         # If the cluster has completed the series upgrade, run the
         # complete-cluster-series-upgrade action to clear this setting.
