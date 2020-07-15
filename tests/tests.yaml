@@ -14,8 +14,10 @@ gate_bundles:
   - focal-ussuri
   - trusty-mitaka
 dev_bundles:
+  - groovy-victoria
+  - focal-victoria
 tests:
   - zaza.openstack.charm_tests.rabbitmq_server.tests.RmqTests
 tests_options:
   force_deploy:
-    - focal-ussuri
+    - groovy-victoria
