@@ -59,11 +59,22 @@ lrwxrwxrwx 1 stonecharioteer stonecharioteer    28 Aug  2 19:48 upgrade-charm ->
 
 So a lot of these hooks are symlinks. That works I suppose.
 
-We begin with `statt`. This is just `rabbitmq_server_relations.py`. In fact, all of the commands are just this.
+## About hooks
+
+In this exercise, I am going to look at a few hooks:
+
+1. `install`
+2. `config-changed`
+3. `cluster-relation-joined`
+4. `cluster-relation-changed`
+
+The install hook is pretty straightforward. It is run at the very beginning of a new charm.
+
+We begin with `install`. This is just `rabbitmq_server_relations.py`. In fact, all of the commands are just this.
 
 ## The `install` hook
 
-Let's back up. Look at `install`. This is assumed to be triggered first. It installs, not rabbitmq, but the following:
+This is triggered first. It installs, not *just* rabbitmq, but the following:
 
 1. apt
 2. netaddr
@@ -106,8 +117,7 @@ This decorator adds the name of the hook to a private variable called `self._hoo
 
 This tells `hooks.execute` what hooks are available.
 
-`hook.hook` *registers* the decorated function to be executed when the particular hook is *executed*
-
+`hook.hook` *registers* the decorated function to be executed when the particular hook is *executed*.
 
 For example: `install.real` does the following:
 
@@ -186,6 +196,13 @@ Finally, `install_or_upgrade_packages` installs the requirements, which include:
 
 So once this is done, `rabbitmq` is finally installed.
 
+
+## `config-changed` hook
+
+This runs immediately after `install`.
+
+This hook applies the configuration changes across the cluster, allows enabling or disabling config
+features.
 
 ## `cluster-relation-joined` hook
 
