@@ -1,5 +1,14 @@
 # My notes on this charm
 
+## Resources
+
+1. [Charm hooks](https://discourse.juju.is/t/charm-hooks/1040)
+2. [Charm Helpers](https://charm-helpers.readthedocs.io)
+3. [Implementing Leadership](https://discourse.juju.is/t/implementing-leadership/1124)
+4. [RabbitMQ charm](https://jaas.ai/rabbitmq-server) (and this repo, of course)
+5. [RabbitMQ Clustering](https://www.rabbitmq.com/clustering.html)
+
+
 ## Building fails
 
 Why isn't it building. Seems to need some layer.yaml file. I suspect this has something to do with how the charm uses the classic method and not the new reactive programming approach.
