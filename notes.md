@@ -7,7 +7,7 @@
 3. [Implementing Leadership](https://discourse.juju.is/t/implementing-leadership/1124)
 4. [RabbitMQ charm](https://jaas.ai/rabbitmq-server) (and this repo, of course)
 5. [RabbitMQ Clustering](https://www.rabbitmq.com/clustering.html)
-
+6. [Developing a Charm](https://discourse.juju.is/t/tutorial-charm-development-beginner-part-1/377)
 
 ## Building fails
 
