@@ -510,3 +510,7 @@ This is the function that does the stopping, joining and the starting.
 ## End Notes
 
 To summarize, I've gone through only 3 hooks in this short timeframe. I am still unable to build this charm, but I am not yet sure why. Since I didn't have the time to delve into this, I decided to make notes on the source code and its lifecycle instead.
+
+## Additional Resources
+
+1. [How to build Charms using modern tools (charmcraft)](https://discourse.juju.is/t/tutorial-how-to-build-a-charm-using-modern-tools/3246)
