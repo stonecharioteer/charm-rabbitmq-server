@@ -9,16 +9,6 @@
 5. [RabbitMQ Clustering](https://www.rabbitmq.com/clustering.html)
 6. [Developing a Charm](https://discourse.juju.is/t/tutorial-charm-development-beginner-part-1/377)
 
-## Building fails
-
-Why isn't it building. Seems to need some layer.yaml file. I suspect this has something to do with how the charm uses the classic method and not the new reactive programming approach.
-```
-build: Please add a `repo` key to your layer.yaml, with a url from which your layer can be cloned.
-build: Destination charm directory: /home/stonecharioteer/code/learning/juju/charms/builds/rabbitmq-server
-build: The top level layer expects a valid layer.yaml file
-build: Processing layer: rabbitmq-server (from .)
-build: At least one layer must provide hooks/hook.template
-```
 
 ## Code
 
@@ -506,6 +496,20 @@ def join_cluster(node):
 
 This is the function that does the stopping, joining and the starting.
 
+
+## Building fails
+
+Why isn't it building. Seems to need some layer.yaml file. I suspect this has something to do with how the charm uses the classic method and not the new reactive programming approach.
+
+```
+build: Please add a `repo` key to your layer.yaml, with a url from which your layer can be cloned.
+build: Destination charm directory: /home/stonecharioteer/code/learning/juju/charms/builds/rabbitmq-server
+build: The top level layer expects a valid layer.yaml file
+build: Processing layer: rabbitmq-server (from .)
+build: At least one layer must provide hooks/hook.template
+```
+
+I suspect that this charm has been built in a different way. I was unable to figure that out in the time I had, but I suspect it uses a builder, such as the resource I have linked below.
 
 ## End Notes
 
